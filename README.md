@@ -48,3 +48,9 @@ Render a modified Cu/Sn bronze candidate input from that template:
 ```powershell
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim render-template tests\fixtures\CuSnBronze.xmsi --output reports\xmsi-template
 ```
+
+Run a low-photon XMI-MSIM smoke simulation and convert the result to CSV:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-template-smoke tests\fixtures\CuSnBronze.xmsi --output reports\xmimsim-smoke
+```

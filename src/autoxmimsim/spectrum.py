@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -31,3 +32,24 @@ class Spectrum:
         if total <= 0:
             raise ValueError("cannot normalize a spectrum with non-positive total counts")
         return Spectrum(self.energies, tuple(count / total for count in self.counts))
+
+
+def load_xmimsim_csv(path: Path) -> Spectrum:
+    """Load a spectrum from an XMI-MSIM CSV export.
+
+    XMI-MSIM CSV rows contain channel, energy, and one or more intensity columns.
+    autoxmimsim uses the energy column and the final intensity column as the
+    candidate spectrum for direct comparison.
+    """
+
+    energies: list[float] = []
+    counts: list[float] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        columns = [column.strip() for column in line.split(",")]
+        if len(columns) < 3:
+            raise ValueError(f"invalid XMI-MSIM CSV row {line_number}: expected at least 3 columns")
+        energies.append(float(columns[1]))
+        counts.append(float(columns[-1]))
+    return Spectrum.from_sequences(energies, counts)

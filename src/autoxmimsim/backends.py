@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import math
+import os
+import subprocess
 from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Sequence
 
 from autoxmimsim.parameters import ParameterValues
-from autoxmimsim.spectrum import Spectrum
+from autoxmimsim.spectrum import Spectrum, load_xmimsim_csv
 from autoxmimsim.xmsi import XmsiTemplate
 
 
@@ -21,6 +24,7 @@ class SimulationRequest:
 class SimulationResult:
     spectrum: Spectrum
     parameters: ParameterValues
+    artifacts: dict[str, Path] = field(default_factory=dict)
 
 
 class SimulationBackend(Protocol):
@@ -92,3 +96,69 @@ class XmsiTemplateBackend:
             "XmsiTemplateBackend rendered "
             f"{xmsi_path}, but executing XMI-MSIM is not implemented yet"
         )
+
+
+class XmiMsimCliBackend(XmsiTemplateBackend):
+    """Run rendered XMSI inputs with the installed XMI-MSIM command line tools."""
+
+    def __init__(
+        self,
+        template_path: Path,
+        work_dir: Path,
+        xmimsim_cli: Path = Path(r"C:\Program Files\XMI-MSIM 64-bit\Bin\xmimsim-cli.exe"),
+        xmso2csv: Path = Path(r"C:\Program Files\XMI-MSIM 64-bit\Bin\xmso2csv.exe"),
+        threads: int = 1,
+        runner=subprocess.run,
+    ) -> None:
+        super().__init__(template_path=template_path, work_dir=work_dir)
+        self.xmimsim_cli = xmimsim_cli
+        self.xmso2csv = xmso2csv
+        self.threads = threads
+        self._runner = runner
+
+    def simulate(self, request: SimulationRequest) -> SimulationResult:
+        name = "candidate"
+        xmsi_path = self.render_input(request, name=name)
+        xmso_path = self.work_dir / f"{name}.xmso"
+        csv_path = self.work_dir / f"{name}.csv"
+
+        self._run(
+            [
+                str(self.xmimsim_cli),
+                "--enable-default-seeds",
+                f"--set-threads={self.threads}",
+                str(xmsi_path),
+            ]
+        )
+        self._run([str(self.xmso2csv), str(xmso_path), str(csv_path)])
+
+        return SimulationResult(
+            spectrum=load_xmimsim_csv(csv_path),
+            parameters=dict(request.parameters),
+            artifacts={"xmsi": xmsi_path, "xmso": xmso_path, "csv": csv_path},
+        )
+
+    def _run(self, command: Sequence[str]) -> None:
+        completed = self._runner(
+            command,
+            env=_xmimsim_env(),
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                "XMI-MSIM command failed: "
+                f"{' '.join(command)}\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            )
+
+
+def _xmimsim_env() -> dict[str, str]:
+    env = os.environ.copy()
+    install_root = Path(r"C:\Program Files\XMI-MSIM 64-bit")
+    extra_paths = [
+        install_root / "Bin",
+        install_root / "Lib",
+        install_root / "GTK",
+    ]
+    env["PATH"] = env.get("PATH", "") + os.pathsep + os.pathsep.join(str(path) for path in extra_paths)
+    return env

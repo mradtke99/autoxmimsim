@@ -89,6 +89,10 @@ class XmsiTemplate:
             self._set_text("geometry/d_sample_source", parameters["d_sample_source"])
         if "detector_window_z" in parameters:
             self._set_text("geometry/p_detector_window/z", parameters["detector_window_z"])
+        if "n_photons_interval" in parameters:
+            self._set_text("general/n_photons_interval", parameters["n_photons_interval"])
+        if "n_photons_line" in parameters:
+            self._set_text("general/n_photons_line", parameters["n_photons_line"])
 
     def set_outputfile(self, outputfile: Path | str) -> None:
         self._set_text("general/outputfile", str(outputfile))

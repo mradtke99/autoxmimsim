@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from autoxmimsim.backends import FakeXrfBackend, SimulationRequest, XmsiTemplateBackend
+from autoxmimsim.backends import (
+    FakeXrfBackend,
+    SimulationRequest,
+    SimulationResult,
+    XmiMsimCliBackend,
+    XmsiTemplateBackend,
+)
 from autoxmimsim.objectives import normalized_rmse
 from autoxmimsim.optimization import OptimizationResult, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
@@ -59,4 +65,19 @@ def render_bronze_candidate(template_path: Path, output_dir: Path) -> Path:
             }
         ),
         name="bronze-candidate",
+    )
+
+
+def run_xmimsim_smoke(template_path: Path, output_dir: Path) -> SimulationResult:
+    backend = XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1)
+    return backend.simulate(
+        SimulationRequest(
+            parameters={
+                "bronze_cu_fraction": 88.0,
+                "bronze_sn_fraction": 12.0,
+                "bronze_thickness": 0.45,
+                "n_photons_interval": 10.0,
+                "n_photons_line": 100.0,
+            }
+        )
     )

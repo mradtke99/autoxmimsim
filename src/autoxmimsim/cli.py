@@ -9,6 +9,7 @@ from autoxmimsim import __version__
 from autoxmimsim.workflows import (
     inspect_xmsi_template,
     render_bronze_candidate,
+    run_xmimsim_smoke,
     run_synthetic_recovery,
 )
 
@@ -52,6 +53,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("reports") / "xmsi-template",
         help="directory for the rendered candidate input",
     )
+    run_template = subparsers.add_parser(
+        "run-template-smoke",
+        help="run a low-photon XMI-MSIM smoke simulation from a template",
+    )
+    run_template.add_argument("template", type=Path)
+    run_template.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports") / "xmimsim-smoke",
+        help="directory for rendered XMSI, XMSO, and CSV artifacts",
+    )
     return parser
 
 
@@ -85,6 +97,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "render-template":
         rendered = render_bronze_candidate(args.template, args.output)
         print(f"Rendered template: {rendered}")
+    elif args.command == "run-template-smoke":
+        result = run_xmimsim_smoke(args.template, args.output)
+        print(f"Channels: {len(result.spectrum.counts)}")
+        print(f"Total counts: {result.spectrum.total_counts:.8g}")
+        for name, path in result.artifacts.items():
+            print(f"{name.upper()}: {path}")
     return 0
 
 

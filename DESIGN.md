@@ -172,9 +172,10 @@ Later distribution:
 3. Done: implement objective functions for whole-spectrum comparison, starting with normalized RMSE.
 4. Done: implement a baseline optimizer that can recover a tiny synthetic truth using the fake backend.
 5. Done: add report generation for the synthetic recovery run.
-6. In progress: use `CuSnBronze.xmsi` as the XMI-MSIM template base and render parameterized candidate inputs.
-7. Next: add an `XmimsimBackend` or CLI backend that executes rendered XMSI inputs and reads XMSO/CSV spectra.
-8. Later: add Bayesian active-learning optimization.
+6. Done: use `CuSnBronze.xmsi` as the XMI-MSIM template base and render parameterized candidate inputs.
+7. Done: add an XMI-MSIM CLI backend that executes rendered XMSI inputs, converts XMSO to CSV, and reads the spectrum back into autoxmimsim.
+8. Next: connect the XMI-MSIM CLI backend to the optimizer for a small real-backend parameter search.
+9. Later: add Bayesian active-learning optimization.
 
 ## The Assignment
 
