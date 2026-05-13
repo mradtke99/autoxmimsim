@@ -167,13 +167,14 @@ Later distribution:
 
 ## Next Steps
 
-1. Add core data models: `Spectrum`, `Parameter`, `ParameterSpace`, `SimulationRequest`, and `SimulationResult`.
-2. Add a `SimulationBackend` protocol plus a fake deterministic backend for tests.
-3. Add an `XmimsimBackend` adapter that wraps the Python `xmimsim` package behind the protocol.
-4. Implement objective functions for whole-spectrum comparison, starting with normalized RMSE and optionally chi-square-like weighting.
-5. Implement a baseline optimizer that can recover a tiny synthetic truth using the fake backend.
-6. Add report generation for the synthetic recovery run.
-7. Only after the baseline works, add Bayesian active-learning optimization.
+1. Done: add core data models: `Spectrum`, `Parameter`, `ParameterSpace`, `SimulationRequest`, and `SimulationResult`.
+2. Done: add a `SimulationBackend` protocol plus a fake deterministic backend for tests.
+3. Done: implement objective functions for whole-spectrum comparison, starting with normalized RMSE.
+4. Done: implement a baseline optimizer that can recover a tiny synthetic truth using the fake backend.
+5. Done: add report generation for the synthetic recovery run.
+6. In progress: use `CuSnBronze.xmsi` as the XMI-MSIM template base and render parameterized candidate inputs.
+7. Next: add an `XmimsimBackend` or CLI backend that executes rendered XMSI inputs and reads XMSO/CSV spectra.
+8. Later: add Bayesian active-learning optimization.
 
 ## The Assignment
 

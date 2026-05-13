@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from autoxmimsim.backends import FakeXrfBackend, SimulationRequest
+from autoxmimsim.backends import FakeXrfBackend, SimulationRequest, XmsiTemplateBackend
 from autoxmimsim.objectives import normalized_rmse
 from autoxmimsim.optimization import OptimizationResult, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.reporting import write_recovery_report
+from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
 
 
 DEFAULT_TARGET: ParameterValues = {
@@ -39,3 +40,23 @@ def run_synthetic_recovery(output_dir: Path) -> tuple[OptimizationResult, Path]:
     )
     report_path = write_recovery_report(output_dir, DEFAULT_TARGET, target, result)
     return result, report_path
+
+
+def inspect_xmsi_template(template_path: Path) -> XmsiSummary:
+    return XmsiTemplate.load(template_path).summary()
+
+
+def render_bronze_candidate(template_path: Path, output_dir: Path) -> Path:
+    backend = XmsiTemplateBackend(template_path=template_path, work_dir=output_dir)
+    return backend.render_input(
+        SimulationRequest(
+            parameters={
+                "bronze_cu_fraction": 88.0,
+                "bronze_sn_fraction": 12.0,
+                "bronze_thickness": 0.45,
+                "d_sample_source": 102.0,
+                "detector_window_z": 100.0,
+            }
+        ),
+        name="bronze-candidate",
+    )

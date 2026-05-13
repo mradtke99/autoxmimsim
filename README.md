@@ -36,3 +36,15 @@ C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autox
 
 The demo uses a deterministic fake XRF backend. It generates a synthetic target spectrum,
 searches a small geometry/composition grid, and writes an HTML report plus a JSON summary.
+
+Inspect an XMI-MSIM input template:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim inspect-template tests\fixtures\CuSnBronze.xmsi
+```
+
+Render a modified Cu/Sn bronze candidate input from that template:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim render-template tests\fixtures\CuSnBronze.xmsi --output reports\xmsi-template
+```

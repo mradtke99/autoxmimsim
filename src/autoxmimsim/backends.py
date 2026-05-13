@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from autoxmimsim.parameters import ParameterValues
 from autoxmimsim.spectrum import Spectrum
+from autoxmimsim.xmsi import XmsiTemplate
 
 
 @dataclass(frozen=True)
@@ -67,3 +69,26 @@ class FakeXrfBackend:
     @staticmethod
     def _gaussian(x_value: float, center: float, sigma: float) -> float:
         return math.exp(-0.5 * ((x_value - center) / sigma) ** 2)
+
+
+class XmsiTemplateBackend:
+    """Backend phase that renders candidate XMSI inputs without executing XMI-MSIM."""
+
+    def __init__(self, template_path: Path, work_dir: Path) -> None:
+        self.template_path = template_path
+        self.work_dir = work_dir
+
+    def render_input(self, request: SimulationRequest, name: str = "candidate") -> Path:
+        template = XmsiTemplate.load(self.template_path).clone()
+        xmsi_path = self.work_dir / f"{name}.xmsi"
+        xmso_path = self.work_dir / f"{name}.xmso"
+        template.apply_parameters(request.parameters)
+        template.set_outputfile(xmso_path)
+        return template.write(xmsi_path)
+
+    def simulate(self, request: SimulationRequest) -> SimulationResult:
+        xmsi_path = self.render_input(request)
+        raise NotImplementedError(
+            "XmsiTemplateBackend rendered "
+            f"{xmsi_path}, but executing XMI-MSIM is not implemented yet"
+        )
