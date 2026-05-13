@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "C:\\Users\\mradtke\\AppData\\Local\\Continuum\\anaconda3\\envs\\py10\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "tests"
+  ]
+}
