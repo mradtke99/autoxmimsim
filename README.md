@@ -27,3 +27,12 @@ Run the CLI:
 ```powershell
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim --version
 ```
+
+Run the first synthetic recovery demo:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim synthetic-demo --output reports\synthetic-demo
+```
+
+The demo uses a deterministic fake XRF backend. It generates a synthetic target spectrum,
+searches a small geometry/composition grid, and writes an HTML report plus a JSON summary.

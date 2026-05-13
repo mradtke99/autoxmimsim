@@ -13,6 +13,8 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+reports/
+test-output/
 
 .vscode/*
 !.vscode/settings.json
