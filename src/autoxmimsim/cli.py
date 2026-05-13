@@ -67,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     real_bronze = subparsers.add_parser(
         "run-real-bronze-demo",
-        help="run a tiny real XMI-MSIM Cu/Sn bronze candidate comparison",
+        help="run a tiny real XMI-MSIM Cu/Sn bronze Bayesian optimization demo",
     )
     real_bronze.add_argument("template", type=Path)
     real_bronze.add_argument(

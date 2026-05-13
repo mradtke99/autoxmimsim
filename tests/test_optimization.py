@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from autoxmimsim.backends import SimulationRequest, SimulationResult
-from autoxmimsim.optimization import grid_search
+from autoxmimsim.optimization import bayesian_grid_search, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace
 from autoxmimsim.spectrum import Spectrum
 
@@ -41,3 +41,21 @@ class OptimizationTests(unittest.TestCase):
             "candidate-002",
         ])
         self.assertEqual(result.history[0].result.run_id, "candidate-000")
+
+    def test_bayesian_grid_search_adaptively_limits_evaluations(self) -> None:
+        backend = RecordingBackend()
+        target = Spectrum((1.0,), (2.0,))
+        parameter_space = ParameterSpace((Parameter("value", 1.0, 3.0, 3),))
+
+        result = bayesian_grid_search(
+            backend=backend,
+            target=target,
+            parameter_space=parameter_space,
+            objective=lambda left, right: abs(left.counts[0] - right.counts[0]),
+            evaluations=2,
+            initial_evaluations=1,
+        )
+
+        self.assertEqual(len(backend.requests), 2)
+        self.assertEqual([request.run_id for request in backend.requests], ["candidate-000", "candidate-001"])
+        self.assertEqual(result.best.parameters, {"value": 2.0})

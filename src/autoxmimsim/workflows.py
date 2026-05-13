@@ -6,13 +6,14 @@ from pathlib import Path
 
 from autoxmimsim.backends import (
     FakeXrfBackend,
+    SimulationBackend,
     SimulationRequest,
     SimulationResult,
     XmiMsimCliBackend,
     XmsiTemplateBackend,
 )
 from autoxmimsim.objectives import normalized_rmse
-from autoxmimsim.optimization import CandidateResult, OptimizationResult, UncertaintySummary, grid_search
+from autoxmimsim.optimization import OptimizationResult, bayesian_grid_search, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.reporting import write_recovery_report, write_spectrum_plot
 from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
@@ -86,24 +87,18 @@ def run_xmimsim_smoke(template_path: Path, output_dir: Path) -> SimulationResult
 
 
 REAL_BRONZE_TARGET: ParameterValues = {
-    "copper_layer_thickness": 0.0001,
+    "copper_layer_thickness": 0.00055,
     "tin_layer_thickness": 0.05,
 }
 
-REAL_BRONZE_CANDIDATES: tuple[ParameterValues, ...] = (
-    {
-        "copper_layer_thickness": 0.0002,
-        "tin_layer_thickness": 0.03,
-    },
-    {
-        "copper_layer_thickness": 0.0001,
-        "tin_layer_thickness": 0.05,
-    },
-    {
-        "copper_layer_thickness": 0.001,
-        "tin_layer_thickness": 0.10,
-    },
+REAL_BRONZE_PARAMETER_SPACE = ParameterSpace(
+    parameters=(
+        Parameter("copper_layer_thickness", lower=0.0001, upper=0.001, steps=3),
+        Parameter("tin_layer_thickness", lower=0.03, upper=0.07, steps=3),
+    )
 )
+
+REAL_BRONZE_EVALUATIONS = 5
 
 SMOKE_PHOTONS: ParameterValues = {
     "n_photons_interval": 10.0,
@@ -112,42 +107,25 @@ SMOKE_PHOTONS: ParameterValues = {
 
 
 def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[OptimizationResult, Path]:
-    backend = XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1)
+    backend = _FixedParameterBackend(
+        XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1),
+        SMOKE_PHOTONS,
+    )
     target_parameters = dict(REAL_BRONZE_TARGET)
     target_simulation = backend.simulate(
         SimulationRequest(
-            parameters={**target_parameters, **SMOKE_PHOTONS},
+            parameters=target_parameters,
             run_id="target",
         )
     )
-
-    history: list[CandidateResult] = []
-    for index, candidate_parameters in enumerate(REAL_BRONZE_CANDIDATES):
-        run_id = f"candidate-{index:03d}"
-        simulation = backend.simulate(
-            SimulationRequest(
-                parameters={**candidate_parameters, **SMOKE_PHOTONS},
-                run_id=run_id,
-            )
-        )
-        score = normalized_rmse(target_simulation.spectrum, simulation.spectrum)
-        history.append(
-            CandidateResult(
-                parameters=dict(candidate_parameters),
-                score=score,
-                result=simulation,
-            )
-        )
-
-    sorted_history = tuple(sorted(history, key=lambda candidate: candidate.score))
-    best = sorted_history[0]
-    result = OptimizationResult(
-        best=best,
-        history=sorted_history,
-        uncertainty=UncertaintySummary(
-            score_threshold=best.score,
-            intervals={name: (value, value) for name, value in best.parameters.items()},
-        ),
+    result = bayesian_grid_search(
+        backend=backend,
+        target=target_simulation.spectrum,
+        parameter_space=REAL_BRONZE_PARAMETER_SPACE,
+        objective=normalized_rmse,
+        evaluations=REAL_BRONZE_EVALUATIONS,
+        initial_evaluations=2,
+        run_id_prefix="candidate",
     )
     report_path = write_recovery_report(
         output_dir,
@@ -157,3 +135,23 @@ def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[Optimiz
     )
     write_spectrum_plot(output_dir, target_simulation.spectrum, result)
     return result, report_path
+
+
+class _FixedParameterBackend:
+    def __init__(self, backend: SimulationBackend, fixed_parameters: ParameterValues) -> None:
+        self._backend = backend
+        self._fixed_parameters = dict(fixed_parameters)
+
+    def simulate(self, request: SimulationRequest) -> SimulationResult:
+        simulation = self._backend.simulate(
+            SimulationRequest(
+                parameters={**request.parameters, **self._fixed_parameters},
+                run_id=request.run_id,
+            )
+        )
+        return SimulationResult(
+            spectrum=simulation.spectrum,
+            parameters=dict(request.parameters),
+            run_id=simulation.run_id,
+            artifacts=simulation.artifacts,
+        )

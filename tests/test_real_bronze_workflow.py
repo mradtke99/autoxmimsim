@@ -37,7 +37,7 @@ class FakeBronzeBackend:
 
 
 class RealBronzeWorkflowTests(unittest.TestCase):
-    def test_real_bronze_demo_runs_target_and_three_candidates(self) -> None:
+    def test_real_bronze_demo_runs_target_and_bayesian_candidates(self) -> None:
         output_dir = Path("reports") / "test-real-bronze-workflow"
         with patch("autoxmimsim.workflows.XmiMsimCliBackend", FakeBronzeBackend):
             result, report_path = run_real_bronze_demo(Path("tests") / "fixtures" / "CuSnBronze.xmsi", output_dir)
@@ -47,8 +47,9 @@ class RealBronzeWorkflowTests(unittest.TestCase):
             "candidate-000",
             "candidate-001",
             "candidate-002",
+            "candidate-003",
+            "candidate-004",
         ])
-        self.assertEqual(result.best.result.run_id, "candidate-001")
         self.assertEqual(result.best.parameters, REAL_BRONZE_TARGET)
         self.assertTrue(report_path.exists())
         self.assertTrue((output_dir / "spectrum-comparison.html").exists())

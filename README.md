@@ -55,12 +55,12 @@ Run a low-photon XMI-MSIM smoke simulation and convert the result to CSV:
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-template-smoke tests\fixtures\CuSnBronze.xmsi --output reports\xmimsim-smoke
 ```
 
-Run the first tiny real-backend Cu/Sn layer-thickness comparison:
+Run the first tiny real-backend Cu/Sn layer-thickness Bayesian optimization:
 
 ```powershell
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-real-bronze-demo tests\fixtures\CuSnBronze.xmsi --output reports\real-bronze-demo
 ```
 
-This renders one target and three fixed candidate runs into separate artifact
-directories, runs XMI-MSIM for each one, compares the spectra, and writes a report
-plus `spectrum-comparison.html` for visual inspection.
+This renders one target and five adaptively selected candidate runs into separate
+artifact directories, runs XMI-MSIM for each one, compares the spectra, and writes
+a report plus `spectrum-comparison.html` for visual inspection.
