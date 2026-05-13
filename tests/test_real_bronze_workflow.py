@@ -51,3 +51,4 @@ class RealBronzeWorkflowTests(unittest.TestCase):
         self.assertEqual(result.best.result.run_id, "candidate-001")
         self.assertEqual(result.best.parameters, REAL_BRONZE_TARGET)
         self.assertTrue(report_path.exists())
+        self.assertTrue((output_dir / "spectrum-comparison.html").exists())

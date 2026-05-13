@@ -31,3 +31,4 @@ class SyntheticRecoveryTests(unittest.TestCase):
         self.assertEqual(result.best.score, 0.0)
         self.assertTrue(report_path.exists())
         self.assertTrue((output_dir / "synthetic-recovery-summary.json").exists())
+        self.assertTrue((output_dir / "spectrum-comparison.html").exists())

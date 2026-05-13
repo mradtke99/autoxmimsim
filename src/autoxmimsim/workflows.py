@@ -14,7 +14,7 @@ from autoxmimsim.backends import (
 from autoxmimsim.objectives import normalized_rmse
 from autoxmimsim.optimization import CandidateResult, OptimizationResult, UncertaintySummary, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
-from autoxmimsim.reporting import write_recovery_report
+from autoxmimsim.reporting import write_recovery_report, write_spectrum_plot
 from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
 
 
@@ -45,6 +45,7 @@ def run_synthetic_recovery(output_dir: Path) -> tuple[OptimizationResult, Path]:
         objective=normalized_rmse,
     )
     report_path = write_recovery_report(output_dir, DEFAULT_TARGET, target, result)
+    write_spectrum_plot(output_dir, target, result)
     return result, report_path
 
 
@@ -154,4 +155,5 @@ def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[Optimiz
         target_simulation.spectrum,
         result,
     )
+    write_spectrum_plot(output_dir, target_simulation.spectrum, result)
     return result, report_path

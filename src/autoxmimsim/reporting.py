@@ -47,6 +47,23 @@ def write_recovery_report(
     return report_path
 
 
+def write_spectrum_plot(
+    output_dir: Path,
+    target_spectrum: Spectrum,
+    result: OptimizationResult,
+    filename: str = "spectrum-comparison.html",
+) -> Path:
+    """Write a standalone target/candidate spectrum plot for visual inspection."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plot_path = output_dir / filename
+    plot_path.write_text(
+        _render_spectrum_plot(target_spectrum, result),
+        encoding="utf-8",
+    )
+    return plot_path
+
+
 def _render_report(
     target_parameters: ParameterValues,
     target_spectrum: Spectrum,
@@ -110,6 +127,63 @@ def _render_report(
 
   <h2>Residuals</h2>
   {_svg_lines(target_spectrum.energies, [residuals], ["residual"])}
+</body>
+</html>
+"""
+
+
+def _render_spectrum_plot(target_spectrum: Spectrum, result: OptimizationResult) -> str:
+    candidates = list(result.history)
+    series = [target_spectrum.counts] + [candidate.result.spectrum.counts for candidate in candidates]
+    classes = ["target"] + [f"candidate-{index}" for index, _candidate in enumerate(candidates)]
+    labels = [("target", None)] + [
+        (candidate.result.run_id, candidate.score)
+        for candidate in candidates
+    ]
+    legend_rows = "\n".join(
+        "<tr>"
+        f"<td><span class=\"swatch {html.escape(css_class)}\"></span>{html.escape(label)}</td>"
+        f"<td>{'' if score is None else f'{score:.8g}'}</td>"
+        "</tr>"
+        for css_class, (label, score) in zip(classes, labels)
+    )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>autoxmimsim spectrum comparison</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; line-height: 1.45; margin: 32px; color: #1f2933; }}
+    h1 {{ margin-bottom: 0.3rem; }}
+    table {{ border-collapse: collapse; margin: 1rem 0; width: 100%; max-width: 520px; }}
+    th, td {{ border: 1px solid #c9d1d9; padding: 0.45rem 0.6rem; text-align: right; }}
+    th:first-child, td:first-child {{ text-align: left; }}
+    th {{ background: #f3f5f7; }}
+    svg {{ max-width: 1100px; width: 100%; height: auto; border: 1px solid #d8dee4; background: white; }}
+    .target {{ stroke: #111827; }}
+    .candidate-0 {{ stroke: #1f77b4; }}
+    .candidate-1 {{ stroke: #d62728; }}
+    .candidate-2 {{ stroke: #2ca02c; }}
+    .candidate-3 {{ stroke: #9467bd; }}
+    .candidate-4 {{ stroke: #ff7f0e; }}
+    .candidate-5 {{ stroke: #17becf; }}
+    .swatch {{ display: inline-block; width: 1.1rem; height: 0.2rem; margin-right: 0.5rem; vertical-align: middle; background: currentColor; }}
+    .swatch.target {{ color: #111827; }}
+    .swatch.candidate-0 {{ color: #1f77b4; }}
+    .swatch.candidate-1 {{ color: #d62728; }}
+    .swatch.candidate-2 {{ color: #2ca02c; }}
+    .swatch.candidate-3 {{ color: #9467bd; }}
+    .swatch.candidate-4 {{ color: #ff7f0e; }}
+    .swatch.candidate-5 {{ color: #17becf; }}
+  </style>
+</head>
+<body>
+  <h1>Spectrum comparison</h1>
+  {_svg_lines(target_spectrum.energies, series, classes, width=1100, height=420)}
+  <table>
+    <thead><tr><th>Series</th><th>Score</th></tr></thead>
+    <tbody>{legend_rows}</tbody>
+  </table>
 </body>
 </html>
 """

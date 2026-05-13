@@ -89,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         for name, value in result.best.parameters.items():
             print(f"  {name}: {value:.6g}")
         print(f"Report: {report_path}")
+        print(f"Plot: {args.output / 'spectrum-comparison.html'}")
     elif args.command == "inspect-template":
         summary = inspect_xmsi_template(args.template)
         print(f"Output file: {summary.outputfile}")
@@ -124,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {name}: {value:.6g}")
         print(f"Artifact root: {args.output}")
         print(f"Report: {report_path}")
+        print(f"Plot: {args.output / 'spectrum-comparison.html'}")
     return 0
 
 

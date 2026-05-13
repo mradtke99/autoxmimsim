@@ -62,4 +62,5 @@ C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autox
 ```
 
 This renders one target and three fixed candidate runs into separate artifact
-directories, runs XMI-MSIM for each one, compares the spectra, and writes a report.
+directories, runs XMI-MSIM for each one, compares the spectra, and writes a report
+plus `spectrum-comparison.html` for visual inspection.
