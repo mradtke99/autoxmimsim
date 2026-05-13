@@ -25,8 +25,18 @@ def write_recovery_report(
         "target_parameters": target_parameters,
         "best_parameters": result.best.parameters,
         "best_score": result.best.score,
+        "best_artifacts": _stringify_artifacts(result.best.result.artifacts),
         "uncertainty_intervals": result.uncertainty.intervals,
         "evaluations": len(result.history),
+        "candidates": [
+            {
+                "run_id": candidate.result.run_id,
+                "parameters": candidate.parameters,
+                "score": candidate.score,
+                "artifacts": _stringify_artifacts(candidate.result.artifacts),
+            }
+            for candidate in result.history
+        ],
     }
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
@@ -103,6 +113,10 @@ def _render_report(
 </body>
 </html>
 """
+
+
+def _stringify_artifacts(artifacts: dict[str, Path]) -> dict[str, str]:
+    return {name: str(path) for name, path in artifacts.items()}
 
 
 def _svg_lines(

@@ -39,12 +39,14 @@ def grid_search(
     parameter_space: ParameterSpace,
     objective: Objective,
     uncertainty_ratio: float = 1.10,
+    run_id_prefix: str = "candidate",
 ) -> OptimizationResult:
     """Evaluate every point in a finite grid and return the best candidate."""
 
     history: list[CandidateResult] = []
-    for parameters in parameter_space.grid():
-        simulation = backend.simulate(SimulationRequest(parameters=parameters))
+    for index, parameters in enumerate(parameter_space.grid()):
+        run_id = f"{run_id_prefix}-{index:03d}"
+        simulation = backend.simulate(SimulationRequest(parameters=parameters, run_id=run_id))
         score = objective(target, simulation.spectrum)
         history.append(CandidateResult(parameters=parameters, score=score, result=simulation))
 

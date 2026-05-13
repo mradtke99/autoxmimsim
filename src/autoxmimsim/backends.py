@@ -18,12 +18,14 @@ from autoxmimsim.xmsi import XmsiTemplate
 @dataclass(frozen=True)
 class SimulationRequest:
     parameters: ParameterValues
+    run_id: str = "candidate"
 
 
 @dataclass(frozen=True)
 class SimulationResult:
     spectrum: Spectrum
     parameters: ParameterValues
+    run_id: str = "candidate"
     artifacts: dict[str, Path] = field(default_factory=dict)
 
 
@@ -68,6 +70,7 @@ class FakeXrfBackend:
         return SimulationResult(
             spectrum=Spectrum(self._energies, tuple(counts)),
             parameters=dict(request.parameters),
+            run_id=request.run_id,
         )
 
     @staticmethod
@@ -82,10 +85,12 @@ class XmsiTemplateBackend:
         self.template_path = template_path
         self.work_dir = work_dir
 
-    def render_input(self, request: SimulationRequest, name: str = "candidate") -> Path:
+    def render_input(self, request: SimulationRequest, name: str | None = None) -> Path:
+        run_id = name or request.run_id
+        run_dir = self.work_dir / run_id
         template = XmsiTemplate.load(self.template_path).clone()
-        xmsi_path = self.work_dir / f"{name}.xmsi"
-        xmso_path = self.work_dir / f"{name}.xmso"
+        xmsi_path = run_dir / f"{run_id}.xmsi"
+        xmso_path = run_dir / f"{run_id}.xmso"
         template.apply_parameters(request.parameters)
         template.set_outputfile(xmso_path)
         return template.write(xmsi_path)
@@ -108,19 +113,22 @@ class XmiMsimCliBackend(XmsiTemplateBackend):
         xmimsim_cli: Path = Path(r"C:\Program Files\XMI-MSIM 64-bit\Bin\xmimsim-cli.exe"),
         xmso2csv: Path = Path(r"C:\Program Files\XMI-MSIM 64-bit\Bin\xmso2csv.exe"),
         threads: int = 1,
+        timeout_seconds: float = 300.0,
         runner=subprocess.run,
     ) -> None:
         super().__init__(template_path=template_path, work_dir=work_dir)
         self.xmimsim_cli = xmimsim_cli
         self.xmso2csv = xmso2csv
         self.threads = threads
+        self.timeout_seconds = timeout_seconds
         self._runner = runner
 
     def simulate(self, request: SimulationRequest) -> SimulationResult:
-        name = "candidate"
-        xmsi_path = self.render_input(request, name=name)
-        xmso_path = self.work_dir / f"{name}.xmso"
-        csv_path = self.work_dir / f"{name}.csv"
+        run_id = request.run_id
+        run_dir = self.work_dir / run_id
+        xmsi_path = self.render_input(request)
+        xmso_path = run_dir / f"{run_id}.xmso"
+        csv_path = run_dir / f"{run_id}.csv"
 
         self._run(
             [
@@ -135,16 +143,27 @@ class XmiMsimCliBackend(XmsiTemplateBackend):
         return SimulationResult(
             spectrum=load_xmimsim_csv(csv_path),
             parameters=dict(request.parameters),
+            run_id=run_id,
             artifacts={"xmsi": xmsi_path, "xmso": xmso_path, "csv": csv_path},
         )
 
     def _run(self, command: Sequence[str]) -> None:
-        completed = self._runner(
-            command,
-            env=_xmimsim_env(),
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed = self._runner(
+                command,
+                env=_xmimsim_env(),
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            stdout = exc.stdout or ""
+            stderr = exc.stderr or ""
+            raise RuntimeError(
+                "XMI-MSIM command timed out after "
+                f"{self.timeout_seconds:g} seconds: {' '.join(command)}\n"
+                f"stdout:\n{stdout}\nstderr:\n{stderr}"
+            ) from exc
         if completed.returncode != 0:
             raise RuntimeError(
                 "XMI-MSIM command failed: "

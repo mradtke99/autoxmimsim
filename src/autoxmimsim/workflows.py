@@ -12,7 +12,7 @@ from autoxmimsim.backends import (
     XmsiTemplateBackend,
 )
 from autoxmimsim.objectives import normalized_rmse
-from autoxmimsim.optimization import OptimizationResult, grid_search
+from autoxmimsim.optimization import CandidateResult, OptimizationResult, UncertaintySummary, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.reporting import write_recovery_report
 from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
@@ -78,6 +78,80 @@ def run_xmimsim_smoke(template_path: Path, output_dir: Path) -> SimulationResult
                 "bronze_thickness": 0.45,
                 "n_photons_interval": 10.0,
                 "n_photons_line": 100.0,
-            }
+            },
+            run_id="candidate",
         )
     )
+
+
+REAL_BRONZE_TARGET: ParameterValues = {
+    "copper_layer_thickness": 0.0001,
+    "tin_layer_thickness": 0.05,
+}
+
+REAL_BRONZE_CANDIDATES: tuple[ParameterValues, ...] = (
+    {
+        "copper_layer_thickness": 0.0002,
+        "tin_layer_thickness": 0.03,
+    },
+    {
+        "copper_layer_thickness": 0.0001,
+        "tin_layer_thickness": 0.05,
+    },
+    {
+        "copper_layer_thickness": 0.001,
+        "tin_layer_thickness": 0.10,
+    },
+)
+
+SMOKE_PHOTONS: ParameterValues = {
+    "n_photons_interval": 10.0,
+    "n_photons_line": 100.0,
+}
+
+
+def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[OptimizationResult, Path]:
+    backend = XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1)
+    target_parameters = dict(REAL_BRONZE_TARGET)
+    target_simulation = backend.simulate(
+        SimulationRequest(
+            parameters={**target_parameters, **SMOKE_PHOTONS},
+            run_id="target",
+        )
+    )
+
+    history: list[CandidateResult] = []
+    for index, candidate_parameters in enumerate(REAL_BRONZE_CANDIDATES):
+        run_id = f"candidate-{index:03d}"
+        simulation = backend.simulate(
+            SimulationRequest(
+                parameters={**candidate_parameters, **SMOKE_PHOTONS},
+                run_id=run_id,
+            )
+        )
+        score = normalized_rmse(target_simulation.spectrum, simulation.spectrum)
+        history.append(
+            CandidateResult(
+                parameters=dict(candidate_parameters),
+                score=score,
+                result=simulation,
+            )
+        )
+
+    sorted_history = tuple(sorted(history, key=lambda candidate: candidate.score))
+    best = sorted_history[0]
+    result = OptimizationResult(
+        best=best,
+        history=sorted_history,
+        uncertainty=UncertaintySummary(
+            score_threshold=best.score,
+            intervals={name: (value, value) for name, value in best.parameters.items()},
+        ),
+    )
+    report_path = write_recovery_report(
+        output_dir,
+        target_parameters,
+        target_simulation.spectrum,
+        result,
+    )
+    return result, report_path
