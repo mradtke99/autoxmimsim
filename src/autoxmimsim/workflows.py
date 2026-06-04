@@ -86,32 +86,20 @@ def run_xmimsim_smoke(template_path: Path, output_dir: Path) -> SimulationResult
     )
 
 
-REAL_BRONZE_TARGET: ParameterValues = {
-    "copper_layer_thickness": 0.00055,
-    "tin_layer_thickness": 0.05,
-}
-
-REAL_BRONZE_PARAMETER_SPACE = ParameterSpace(
-    parameters=(
-        Parameter("copper_layer_thickness", lower=0.0001, upper=0.001, steps=3),
-        Parameter("tin_layer_thickness", lower=0.03, upper=0.07, steps=3),
-    )
-)
-
-REAL_BRONZE_EVALUATIONS = 5
-
-SMOKE_PHOTONS: ParameterValues = {
-    "n_photons_interval": 10.0,
-    "n_photons_line": 100.0,
-}
-
-
-def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[OptimizationResult, Path]:
+def run_real_bronze_demo(
+    template_path: Path,
+    output_dir: Path,
+    target_parameters: ParameterValues,
+    parameter_space: ParameterSpace,
+    evaluations: int,
+    fixed_parameters: ParameterValues | None = None,
+    initial_evaluations: int = 2,
+) -> tuple[OptimizationResult, Path]:
+    _validate_search_request(target_parameters, parameter_space)
     backend = _FixedParameterBackend(
         XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1),
-        SMOKE_PHOTONS,
+        fixed_parameters or {},
     )
-    target_parameters = dict(REAL_BRONZE_TARGET)
     target_simulation = backend.simulate(
         SimulationRequest(
             parameters=target_parameters,
@@ -121,10 +109,10 @@ def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[Optimiz
     result = bayesian_grid_search(
         backend=backend,
         target=target_simulation.spectrum,
-        parameter_space=REAL_BRONZE_PARAMETER_SPACE,
+        parameter_space=parameter_space,
         objective=normalized_rmse,
-        evaluations=REAL_BRONZE_EVALUATIONS,
-        initial_evaluations=2,
+        evaluations=evaluations,
+        initial_evaluations=initial_evaluations,
         run_id_prefix="candidate",
     )
     report_path = write_recovery_report(
@@ -135,6 +123,20 @@ def run_real_bronze_demo(template_path: Path, output_dir: Path) -> tuple[Optimiz
     )
     write_spectrum_plot(output_dir, target_simulation.spectrum, result)
     return result, report_path
+
+
+def _validate_search_request(target_parameters: ParameterValues, parameter_space: ParameterSpace) -> None:
+    target_names = set(target_parameters)
+    range_names = {parameter.name for parameter in parameter_space.parameters}
+    if target_names != range_names:
+        missing_targets = sorted(range_names - target_names)
+        missing_ranges = sorted(target_names - range_names)
+        details = []
+        if missing_targets:
+            details.append(f"missing target values for: {', '.join(missing_targets)}")
+        if missing_ranges:
+            details.append(f"missing ranges for: {', '.join(missing_ranges)}")
+        raise ValueError("; ".join(details))
 
 
 class _FixedParameterBackend:

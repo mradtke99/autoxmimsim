@@ -33,7 +33,28 @@ class CliTests(unittest.TestCase):
 
             with patch("sys.stdout", new=io.StringIO()):
                 self.assertEqual(
-                    main(["run-real-bronze-demo", "template.xmsi", "--output", "out"]),
+                    main(
+                        [
+                            "run-real-bronze-demo",
+                            "template.xmsi",
+                            "--output",
+                            "out",
+                            "--target",
+                            "copper_layer_thickness=0.00055",
+                            "--target",
+                            "tin_layer_thickness=0.05",
+                            "--range",
+                            "copper_layer_thickness=0.0001:0.001:3",
+                            "--range",
+                            "tin_layer_thickness=0.03:0.07:3",
+                            "--evaluations",
+                            "5",
+                        ]
+                    ),
                     0,
                 )
             run_real_bronze_demo.assert_called_once()
+            _, _, kwargs = run_real_bronze_demo.mock_calls[0]
+            self.assertEqual(kwargs["target_parameters"]["copper_layer_thickness"], 0.00055)
+            self.assertEqual(kwargs["parameter_space"].parameters[0].name, "copper_layer_thickness")
+            self.assertEqual(kwargs["evaluations"], 5)

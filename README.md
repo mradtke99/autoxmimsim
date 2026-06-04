@@ -58,9 +58,10 @@ C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autox
 Run the first tiny real-backend Cu/Sn layer-thickness Bayesian optimization:
 
 ```powershell
-C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-real-bronze-demo tests\fixtures\CuSnBronze.xmsi --output reports\real-bronze-demo
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-real-bronze-demo tests\fixtures\CuSnBronze.xmsi --output reports\real-bronze-demo --target copper_layer_thickness=0.00055 --target tin_layer_thickness=0.05 --range copper_layer_thickness=0.0001:0.001:3 --range tin_layer_thickness=0.03:0.07:3 --evaluations 5
 ```
 
-This renders one target and five adaptively selected candidate runs into separate
-artifact directories, runs XMI-MSIM for each one, compares the spectra, and writes
-a report plus `spectrum-comparison.html` for visual inspection.
+This renders one target from the supplied `--target` values and adaptively selects
+candidate runs inside the supplied `--range` bounds. It runs XMI-MSIM for each one,
+compares the spectra, and writes a report plus `spectrum-comparison.html` for
+visual inspection.

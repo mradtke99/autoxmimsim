@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from autoxmimsim import __version__
+from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.workflows import (
     inspect_xmsi_template,
     render_bronze_candidate,
@@ -76,6 +77,44 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("reports") / "real-bronze-demo",
         help="directory for target, candidate, and report artifacts",
     )
+    real_bronze.add_argument(
+        "--target",
+        action="append",
+        required=True,
+        metavar="NAME=VALUE",
+        help="synthetic target parameter value; repeat for each varied parameter",
+    )
+    real_bronze.add_argument(
+        "--range",
+        action="append",
+        required=True,
+        metavar="NAME=LOWER:UPPER:STEPS",
+        help="Bayesian search range; repeat for each varied parameter",
+    )
+    real_bronze.add_argument(
+        "--evaluations",
+        type=int,
+        required=True,
+        help="number of Bayesian candidate simulations to run",
+    )
+    real_bronze.add_argument(
+        "--initial-evaluations",
+        type=int,
+        default=2,
+        help="number of space-filling seed simulations before acquisition starts",
+    )
+    real_bronze.add_argument(
+        "--n-photons-interval",
+        type=float,
+        default=10.0,
+        help="fixed XMI-MSIM interval photon count for each simulation",
+    )
+    real_bronze.add_argument(
+        "--n-photons-line",
+        type=float,
+        default=100.0,
+        help="fixed XMI-MSIM line photon count for each simulation",
+    )
     return parser
 
 
@@ -117,7 +156,23 @@ def main(argv: list[str] | None = None) -> int:
         for name, path in result.artifacts.items():
             print(f"{name.upper()}: {path}")
     elif args.command == "run-real-bronze-demo":
-        result, report_path = run_real_bronze_demo(args.template, args.output)
+        try:
+            target_parameters = _parse_target_values(args.target)
+            parameter_space = _parse_parameter_space(args.range)
+        except ValueError as exc:
+            parser.error(str(exc))
+        result, report_path = run_real_bronze_demo(
+            args.template,
+            args.output,
+            target_parameters=target_parameters,
+            parameter_space=parameter_space,
+            evaluations=args.evaluations,
+            initial_evaluations=args.initial_evaluations,
+            fixed_parameters={
+                "n_photons_interval": args.n_photons_interval,
+                "n_photons_line": args.n_photons_line,
+            },
+        )
         print(f"Best score: {result.best.score:.8g}")
         print(f"Best run: {result.best.result.run_id}")
         print("Best parameters:")
@@ -127,6 +182,41 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Report: {report_path}")
         print(f"Plot: {args.output / 'spectrum-comparison.html'}")
     return 0
+
+
+def _parse_target_values(values: list[str]) -> ParameterValues:
+    parsed: ParameterValues = {}
+    for value in values:
+        name, raw_number = _split_once(value, "=", "target")
+        if name in parsed:
+            raise ValueError(f"duplicate target parameter: {name}")
+        parsed[name] = float(raw_number)
+    return parsed
+
+
+def _parse_parameter_space(values: list[str]) -> ParameterSpace:
+    parameters: list[Parameter] = []
+    names: set[str] = set()
+    for value in values:
+        name, raw_range = _split_once(value, "=", "range")
+        if name in names:
+            raise ValueError(f"duplicate range parameter: {name}")
+        parts = raw_range.split(":")
+        if len(parts) != 3:
+            raise ValueError(f"range must be NAME=LOWER:UPPER:STEPS: {value}")
+        lower, upper, steps = parts
+        parameters.append(Parameter(name=name, lower=float(lower), upper=float(upper), steps=int(steps)))
+        names.add(name)
+    return ParameterSpace(tuple(parameters))
+
+
+def _split_once(value: str, delimiter: str, label: str) -> tuple[str, str]:
+    if delimiter not in value:
+        raise ValueError(f"{label} must contain '{delimiter}': {value}")
+    name, raw_value = value.split(delimiter, 1)
+    if not name or not raw_value:
+        raise ValueError(f"{label} must be complete: {value}")
+    return name, raw_value
 
 
 if __name__ == "__main__":
