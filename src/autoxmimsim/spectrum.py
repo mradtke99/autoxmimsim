@@ -53,3 +53,55 @@ def load_xmimsim_csv(path: Path) -> Spectrum:
         energies.append(float(columns[1]))
         counts.append(float(columns[-1]))
     return Spectrum.from_sequences(energies, counts)
+
+
+def load_measured_csv(path: Path) -> Spectrum:
+    """Load a measured spectrum CSV with energy and counts columns.
+
+    The loader accepts either a header row such as ``energy,counts`` or raw
+    two-column numeric rows. Extra columns are ignored.
+    """
+
+    energies: list[float] = []
+    counts: list[float] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        columns = [column.strip() for column in line.split(",")]
+        if len(columns) < 2:
+            raise ValueError(f"invalid measured CSV row {line_number}: expected at least 2 columns")
+        try:
+            energy = float(columns[0])
+            count = float(columns[1])
+        except ValueError:
+            if line_number == 1:
+                continue
+            raise
+        energies.append(energy)
+        counts.append(count)
+    return Spectrum.from_sequences(energies, counts)
+
+
+def interpolate_to(source: Spectrum, target_energies: tuple[float, ...]) -> Spectrum:
+    """Linearly interpolate a spectrum onto a target energy grid."""
+
+    if any(right <= left for left, right in zip(source.energies, source.energies[1:])):
+        raise ValueError("source energies must be strictly increasing")
+    counts = [_interpolate_count(source, energy) for energy in target_energies]
+    return Spectrum(target_energies, tuple(counts))
+
+
+def _interpolate_count(source: Spectrum, energy: float) -> float:
+    if energy <= source.energies[0]:
+        return source.counts[0]
+    if energy >= source.energies[-1]:
+        return source.counts[-1]
+    for index in range(1, len(source.energies)):
+        right_energy = source.energies[index]
+        if energy <= right_energy:
+            left_energy = source.energies[index - 1]
+            left_count = source.counts[index - 1]
+            right_count = source.counts[index]
+            fraction = (energy - left_energy) / (right_energy - left_energy)
+            return left_count + fraction * (right_count - left_count)
+    return source.counts[-1]

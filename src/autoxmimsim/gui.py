@@ -9,7 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
-from autoxmimsim.workflows import run_real_bronze_demo
+from autoxmimsim.workflows import run_measured_optimization, run_real_bronze_demo
 
 
 DEFAULT_ROWS = (
@@ -32,7 +32,9 @@ class AutoXmimsimApp:
         self.root.minsize(860, 620)
 
         self.template_var = tk.StringVar(value=str(Path("tests") / "fixtures" / "CuSnBronze.xmsi"))
+        self.measured_var = tk.StringVar(value="")
         self.output_var = tk.StringVar(value=str(Path("reports") / "real-bronze-demo"))
+        self.mode_var = tk.StringVar(value="measured")
         self.evaluations_var = tk.StringVar(value="5")
         self.initial_evaluations_var = tk.StringVar(value="2")
         self.photons_interval_var = tk.StringVar(value="10")
@@ -50,9 +52,10 @@ class AutoXmimsimApp:
         frame = ttk.Frame(self.root, padding=14)
         frame.grid(row=0, column=0, sticky="nsew")
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(3, weight=1)
+        frame.rowconfigure(4, weight=1)
 
         self._build_paths(frame)
+        self._build_mode(frame)
         self._build_controls(frame)
         self._build_parameter_table(frame)
         self._build_log(frame)
@@ -67,13 +70,35 @@ class AutoXmimsimApp:
         ttk.Entry(paths, textvariable=self.template_var).grid(row=0, column=1, sticky="ew", pady=4)
         ttk.Button(paths, text="Browse", command=self._browse_template).grid(row=0, column=2, padx=(8, 0), pady=4)
 
-        ttk.Label(paths, text="Output folder").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Entry(paths, textvariable=self.output_var).grid(row=1, column=1, sticky="ew", pady=4)
-        ttk.Button(paths, text="Browse", command=self._browse_output).grid(row=1, column=2, padx=(8, 0), pady=4)
+        ttk.Label(paths, text="Measured spectrum").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Entry(paths, textvariable=self.measured_var).grid(row=1, column=1, sticky="ew", pady=4)
+        ttk.Button(paths, text="Browse", command=self._browse_measured).grid(row=1, column=2, padx=(8, 0), pady=4)
+
+        ttk.Label(paths, text="Output folder").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Entry(paths, textvariable=self.output_var).grid(row=2, column=1, sticky="ew", pady=4)
+        ttk.Button(paths, text="Browse", command=self._browse_output).grid(row=2, column=2, padx=(8, 0), pady=4)
+
+    def _build_mode(self, parent: ttk.Frame) -> None:
+        mode = ttk.LabelFrame(parent, text="Target mode", padding=10)
+        mode.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        ttk.Radiobutton(
+            mode,
+            text="Measured spectrum CSV",
+            value="measured",
+            variable=self.mode_var,
+            command=self._update_mode,
+        ).grid(row=0, column=0, sticky="w", padx=(0, 18))
+        ttk.Radiobutton(
+            mode,
+            text="Synthetic target values",
+            value="synthetic",
+            variable=self.mode_var,
+            command=self._update_mode,
+        ).grid(row=0, column=1, sticky="w")
 
     def _build_controls(self, parent: ttk.Frame) -> None:
         controls = ttk.LabelFrame(parent, text="Search settings", padding=10)
-        controls.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        controls.grid(row=2, column=0, sticky="ew", pady=(10, 0))
         for column in range(8):
             controls.columnconfigure(column, weight=1)
 
@@ -89,7 +114,7 @@ class AutoXmimsimApp:
 
     def _build_parameter_table(self, parent: ttk.Frame) -> None:
         wrapper = ttk.LabelFrame(parent, text="Bayesian parameters", padding=10)
-        wrapper.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        wrapper.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         for column in range(6):
             wrapper.columnconfigure(column, weight=1)
 
@@ -100,6 +125,7 @@ class AutoXmimsimApp:
         self.table = wrapper
         for row_values in DEFAULT_ROWS:
             self._add_parameter_row(row_values)
+        self._update_mode()
 
         ttk.Button(wrapper, text="Add parameter", command=lambda: self._add_parameter_row()).grid(
             row=99,
@@ -111,7 +137,7 @@ class AutoXmimsimApp:
 
     def _build_log(self, parent: ttk.Frame) -> None:
         log_frame = ttk.LabelFrame(parent, text="Run log", padding=10)
-        log_frame.grid(row=3, column=0, sticky="nsew", pady=(10, 0))
+        log_frame.grid(row=4, column=0, sticky="nsew", pady=(10, 0))
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
 
@@ -123,7 +149,7 @@ class AutoXmimsimApp:
 
     def _build_actions(self, parent: ttk.Frame) -> None:
         actions = ttk.Frame(parent)
-        actions.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        actions.grid(row=5, column=0, sticky="ew", pady=(10, 0))
         actions.columnconfigure(3, weight=1)
 
         self.run_button = ttk.Button(actions, text="Run Bayesian search", command=self._run)
@@ -136,6 +162,7 @@ class AutoXmimsimApp:
         values = values or ("", "", "", "", "3")
         row = ParameterRow(self.table, len(self.rows) + 1, values, self._remove_parameter_row)
         self.rows.append(row)
+        row.set_target_enabled(self.mode_var.get() != "measured")
 
     def _remove_parameter_row(self, row: "ParameterRow") -> None:
         if len(self.rows) <= 1:
@@ -153,6 +180,14 @@ class AutoXmimsimApp:
         )
         if path:
             self.template_var.set(path)
+
+    def _browse_measured(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Choose measured spectrum CSV",
+            filetypes=(("CSV spectrum", "*.csv"), ("All files", "*.*")),
+        )
+        if path:
+            self.measured_var.set(path)
 
     def _browse_output(self) -> None:
         path = filedialog.askdirectory(title="Choose output folder")
@@ -173,20 +208,29 @@ class AutoXmimsimApp:
 
     def _read_request(
         self,
-    ) -> tuple[Path, Path, ParameterValues, ParameterSpace, int, int, ParameterValues]:
+    ) -> tuple[str, Path, Path | None, Path, ParameterValues, ParameterSpace, int, int, ParameterValues]:
         template = Path(self.template_var.get())
         output = Path(self.output_var.get())
         if not template.exists():
             raise ValueError(f"Template does not exist: {template}")
+        mode = self.mode_var.get()
+        measured_path: Path | None = None
+        if mode == "measured":
+            measured_path = Path(self.measured_var.get())
+            if not measured_path.exists():
+                raise ValueError(f"Measured spectrum does not exist: {measured_path}")
         target: ParameterValues = {}
         parameters: list[Parameter] = []
+        names: set[str] = set()
         for row in self.rows:
             name, target_value, lower, upper, steps = row.values()
             if not name:
                 raise ValueError("Every parameter row needs a name.")
-            if name in target:
+            if name in names:
                 raise ValueError(f"Duplicate parameter: {name}")
-            target[name] = float(target_value)
+            names.add(name)
+            if mode == "synthetic":
+                target[name] = float(target_value)
             parameters.append(Parameter(name, float(lower), float(upper), int(steps)))
         evaluations = int(self.evaluations_var.get())
         initial_evaluations = int(self.initial_evaluations_var.get())
@@ -194,11 +238,23 @@ class AutoXmimsimApp:
             "n_photons_interval": float(self.photons_interval_var.get()),
             "n_photons_line": float(self.photons_line_var.get()),
         }
-        return template, output, target, ParameterSpace(tuple(parameters)), evaluations, initial_evaluations, fixed
+        return (
+            mode,
+            template,
+            measured_path,
+            output,
+            target,
+            ParameterSpace(tuple(parameters)),
+            evaluations,
+            initial_evaluations,
+            fixed,
+        )
 
     def _run_worker(
         self,
+        mode: str,
         template: Path,
+        measured_path: Path | None,
         output: Path,
         target: ParameterValues,
         parameter_space: ParameterSpace,
@@ -207,15 +263,28 @@ class AutoXmimsimApp:
         fixed: ParameterValues,
     ) -> None:
         try:
-            result, report_path = run_real_bronze_demo(
-                template,
-                output,
-                target_parameters=target,
-                parameter_space=parameter_space,
-                evaluations=evaluations,
-                initial_evaluations=initial_evaluations,
-                fixed_parameters=fixed,
-            )
+            if mode == "measured":
+                if measured_path is None:
+                    raise ValueError("Measured spectrum path is required.")
+                result, report_path = run_measured_optimization(
+                    template,
+                    measured_path,
+                    output,
+                    parameter_space=parameter_space,
+                    evaluations=evaluations,
+                    initial_evaluations=initial_evaluations,
+                    fixed_parameters=fixed,
+                )
+            else:
+                result, report_path = run_real_bronze_demo(
+                    template,
+                    output,
+                    target_parameters=target,
+                    parameter_space=parameter_space,
+                    evaluations=evaluations,
+                    initial_evaluations=initial_evaluations,
+                    fixed_parameters=fixed,
+                )
         except Exception as exc:  # pragma: no cover - UI boundary
             self.root.after(0, self._finish_error, exc)
             return
@@ -260,6 +329,11 @@ class AutoXmimsimApp:
         self.log.insert("end", message + "\n")
         self.log.see("end")
 
+    def _update_mode(self) -> None:
+        measured = self.mode_var.get() == "measured"
+        for row in self.rows:
+            row.set_target_enabled(not measured)
+
 
 class ParameterRow:
     def __init__(
@@ -302,3 +376,6 @@ class ParameterRow:
     def destroy(self) -> None:
         for widget in self.widgets:
             widget.destroy()
+
+    def set_target_enabled(self, enabled: bool) -> None:
+        self.widgets[1].configure(state="normal" if enabled else "disabled")

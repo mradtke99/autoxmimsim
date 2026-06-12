@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from autoxmimsim.spectrum import Spectrum
+from autoxmimsim.spectrum import Spectrum, interpolate_to
 
 
 def normalized_rmse(target: Spectrum, candidate: Spectrum) -> float:
@@ -19,3 +19,11 @@ def normalized_rmse(target: Spectrum, candidate: Spectrum) -> float:
         for target_count, candidate_count in zip(target_norm.counts, candidate_norm.counts)
     )
     return math.sqrt(squared_error / len(target_norm.counts))
+
+
+def interpolated_normalized_rmse(target: Spectrum, candidate: Spectrum) -> float:
+    """Normalize and compare after interpolating candidate to target energies."""
+
+    if target.energies != candidate.energies:
+        candidate = interpolate_to(candidate, target.energies)
+    return normalized_rmse(target, candidate)

@@ -12,10 +12,11 @@ from autoxmimsim.backends import (
     XmiMsimCliBackend,
     XmsiTemplateBackend,
 )
-from autoxmimsim.objectives import normalized_rmse
-from autoxmimsim.optimization import OptimizationResult, bayesian_grid_search, grid_search
+from autoxmimsim.objectives import interpolated_normalized_rmse, normalized_rmse
+from autoxmimsim.optimization import CandidateResult, OptimizationResult, bayesian_grid_search, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.reporting import write_recovery_report, write_spectrum_plot
+from autoxmimsim.spectrum import Spectrum, interpolate_to, load_measured_csv
 from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
 
 
@@ -125,6 +126,40 @@ def run_real_bronze_demo(
     return result, report_path
 
 
+def run_measured_optimization(
+    template_path: Path,
+    measured_spectrum_path: Path,
+    output_dir: Path,
+    parameter_space: ParameterSpace,
+    evaluations: int,
+    fixed_parameters: ParameterValues | None = None,
+    initial_evaluations: int = 2,
+) -> tuple[OptimizationResult, Path]:
+    measured_spectrum = load_measured_csv(measured_spectrum_path)
+    backend = _FixedParameterBackend(
+        XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1),
+        fixed_parameters or {},
+    )
+    result = bayesian_grid_search(
+        backend=backend,
+        target=measured_spectrum,
+        parameter_space=parameter_space,
+        objective=interpolated_normalized_rmse,
+        evaluations=evaluations,
+        initial_evaluations=initial_evaluations,
+        run_id_prefix="candidate",
+    )
+    aligned_result = _align_result_spectra(result, measured_spectrum)
+    report_path = write_recovery_report(
+        output_dir,
+        {},
+        measured_spectrum,
+        aligned_result,
+    )
+    write_spectrum_plot(output_dir, measured_spectrum, aligned_result)
+    return aligned_result, report_path
+
+
 def _validate_search_request(target_parameters: ParameterValues, parameter_space: ParameterSpace) -> None:
     target_names = set(target_parameters)
     range_names = {parameter.name for parameter in parameter_space.parameters}
@@ -157,3 +192,21 @@ class _FixedParameterBackend:
             run_id=simulation.run_id,
             artifacts=simulation.artifacts,
         )
+
+
+def _align_result_spectra(result: OptimizationResult, target: Spectrum) -> OptimizationResult:
+    history = tuple(
+        CandidateResult(
+            parameters=candidate.parameters,
+            score=candidate.score,
+            result=SimulationResult(
+                spectrum=interpolate_to(candidate.result.spectrum, target.energies),
+                parameters=candidate.result.parameters,
+                run_id=candidate.result.run_id,
+                artifacts=candidate.result.artifacts,
+            ),
+        )
+        for candidate in result.history
+    )
+    best = next(candidate for candidate in history if candidate.result.run_id == result.best.result.run_id)
+    return OptimizationResult(best=best, history=history, uncertainty=result.uncertainty)

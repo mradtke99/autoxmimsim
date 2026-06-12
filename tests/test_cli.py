@@ -63,3 +63,36 @@ class CliTests(unittest.TestCase):
             self.assertEqual(kwargs["target_parameters"]["copper_layer_thickness"], 0.00055)
             self.assertEqual(kwargs["parameter_space"].parameters[0].name, "copper_layer_thickness")
             self.assertEqual(kwargs["evaluations"], 5)
+
+    def test_optimize_measured_command_runs_workflow(self) -> None:
+        with patch("autoxmimsim.cli.run_measured_optimization") as run_measured_optimization:
+            best = unittest.mock.Mock(
+                score=0.1,
+                parameters={"value": 10.0},
+                result=unittest.mock.Mock(run_id="candidate-000"),
+            )
+            result = unittest.mock.Mock(best=best)
+            run_measured_optimization.return_value = (result, "report.html")
+
+            with patch("sys.stdout", new=io.StringIO()):
+                self.assertEqual(
+                    main(
+                        [
+                            "optimize-measured",
+                            "template.xmsi",
+                            "measured.csv",
+                            "--output",
+                            "out",
+                            "--range",
+                            "value=9:11:3",
+                            "--evaluations",
+                            "2",
+                        ]
+                    ),
+                    0,
+                )
+            run_measured_optimization.assert_called_once()
+            _, args, kwargs = run_measured_optimization.mock_calls[0]
+            self.assertEqual(str(args[1]), "measured.csv")
+            self.assertEqual(kwargs["parameter_space"].parameters[0].name, "value")
+            self.assertEqual(kwargs["evaluations"], 2)

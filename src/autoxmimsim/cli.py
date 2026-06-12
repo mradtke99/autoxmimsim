@@ -10,6 +10,7 @@ from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.workflows import (
     inspect_xmsi_template,
     render_bronze_candidate,
+    run_measured_optimization,
     run_real_bronze_demo,
     run_xmimsim_smoke,
     run_synthetic_recovery,
@@ -120,6 +121,49 @@ def build_parser() -> argparse.ArgumentParser:
         default=100.0,
         help="fixed XMI-MSIM line photon count for each simulation",
     )
+    measured = subparsers.add_parser(
+        "optimize-measured",
+        help="run Bayesian optimization against a measured energy/counts CSV",
+    )
+    measured.add_argument("template", type=Path)
+    measured.add_argument("measured", type=Path)
+    measured.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports") / "measured-optimization",
+        help="directory for candidate and report artifacts",
+    )
+    measured.add_argument(
+        "--range",
+        action="append",
+        required=True,
+        metavar="NAME=LOWER:UPPER:STEPS",
+        help="Bayesian search range; repeat for each varied parameter",
+    )
+    measured.add_argument(
+        "--evaluations",
+        type=int,
+        required=True,
+        help="number of Bayesian candidate simulations to run",
+    )
+    measured.add_argument(
+        "--initial-evaluations",
+        type=int,
+        default=2,
+        help="number of space-filling seed simulations before acquisition starts",
+    )
+    measured.add_argument(
+        "--n-photons-interval",
+        type=float,
+        default=10.0,
+        help="fixed XMI-MSIM interval photon count for each simulation",
+    )
+    measured.add_argument(
+        "--n-photons-line",
+        type=float,
+        default=100.0,
+        help="fixed XMI-MSIM line photon count for each simulation",
+    )
     return parser
 
 
@@ -174,6 +218,31 @@ def main(argv: list[str] | None = None) -> int:
             args.template,
             args.output,
             target_parameters=target_parameters,
+            parameter_space=parameter_space,
+            evaluations=args.evaluations,
+            initial_evaluations=args.initial_evaluations,
+            fixed_parameters={
+                "n_photons_interval": args.n_photons_interval,
+                "n_photons_line": args.n_photons_line,
+            },
+        )
+        print(f"Best score: {result.best.score:.8g}")
+        print(f"Best run: {result.best.result.run_id}")
+        print("Best parameters:")
+        for name, value in result.best.parameters.items():
+            print(f"  {name}: {value:.6g}")
+        print(f"Artifact root: {args.output}")
+        print(f"Report: {report_path}")
+        print(f"Plot: {args.output / 'spectrum-comparison.html'}")
+    elif args.command == "optimize-measured":
+        try:
+            parameter_space = _parse_parameter_space(args.range)
+        except ValueError as exc:
+            parser.error(str(exc))
+        result, report_path = run_measured_optimization(
+            args.template,
+            args.measured,
+            args.output,
             parameter_space=parameter_space,
             evaluations=args.evaluations,
             initial_evaluations=args.initial_evaluations,

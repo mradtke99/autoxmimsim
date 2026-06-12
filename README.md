@@ -34,9 +34,10 @@ Launch the desktop GUI:
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim gui
 ```
 
-The GUI lets you choose the XMSI template, choose the output folder, edit
-Bayesian parameter target/range rows, set photon counts and evaluations, run the
-search, and open the generated report or spectrum comparison plot.
+The GUI lets you choose the XMSI template, choose a measured spectrum CSV or use
+synthetic target values, edit Bayesian parameter ranges, set photon counts and
+evaluations, run the search, and open the generated report or spectrum comparison
+plot.
 
 Run the first synthetic recovery demo:
 
@@ -75,3 +76,21 @@ This renders one target from the supplied `--target` values and adaptively selec
 candidate runs inside the supplied `--range` bounds. It runs XMI-MSIM for each one,
 compares the spectra, and writes a report plus `spectrum-comparison.html` for
 visual inspection.
+
+Optimize against a measured spectrum CSV:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi path\to\measured-spectrum.csv --output reports\measured-optimization --range copper_layer_thickness=0.0001:0.001:7 --range tin_layer_thickness=0.03:0.07:7 --evaluations 20
+```
+
+Measured CSV files should contain energy and counts columns. A header is allowed:
+
+```csv
+energy,counts
+0.02,123
+0.03,129
+0.04,118
+```
+
+The measured workflow interpolates simulated spectra onto the measured energy grid
+before scoring and plotting.

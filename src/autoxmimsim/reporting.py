@@ -71,15 +71,16 @@ def _render_report(
     summary_name: str,
 ) -> str:
     best_spectrum = result.best.result.spectrum
+    parameter_names = tuple(target_parameters) or tuple(result.best.parameters)
     rows = "\n".join(
         "<tr>"
         f"<td>{html.escape(name)}</td>"
-        f"<td>{target_parameters[name]:.6g}</td>"
+        f"<td>{_format_optional_parameter(target_parameters.get(name))}</td>"
         f"<td>{result.best.parameters[name]:.6g}</td>"
-        f"<td>{result.best.parameters[name] - target_parameters[name]:.6g}</td>"
+        f"<td>{_format_parameter_error(target_parameters.get(name), result.best.parameters[name])}</td>"
         f"<td>{result.uncertainty.intervals[name][0]:.6g} - {result.uncertainty.intervals[name][1]:.6g}</td>"
         "</tr>"
-        for name in target_parameters
+        for name in parameter_names
     )
     residuals = tuple(
         target_count - best_count
@@ -191,6 +192,18 @@ def _render_spectrum_plot(target_spectrum: Spectrum, result: OptimizationResult)
 
 def _stringify_artifacts(artifacts: dict[str, Path]) -> dict[str, str]:
     return {name: str(path) for name, path in artifacts.items()}
+
+
+def _format_optional_parameter(value: float | None) -> str:
+    if value is None:
+        return "measured"
+    return f"{value:.6g}"
+
+
+def _format_parameter_error(target_value: float | None, best_value: float) -> str:
+    if target_value is None:
+        return ""
+    return f"{best_value - target_value:.6g}"
 
 
 def _svg_lines(
