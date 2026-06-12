@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 from pathlib import Path
 
 from autoxmimsim.optimization import OptimizationResult
@@ -124,7 +125,7 @@ def _render_report(
   </table>
 
   <h2>Target vs recovered spectrum</h2>
-  {_svg_lines(target_spectrum.energies, [target_spectrum.counts, best_spectrum.counts], ["target", "best"])}
+  {_svg_lines(target_spectrum.energies, [target_spectrum.counts, best_spectrum.counts], ["target", "best"], log_y=True)}
 
   <h2>Residuals</h2>
   {_svg_lines(target_spectrum.energies, [residuals], ["residual"])}
@@ -180,7 +181,8 @@ def _render_spectrum_plot(target_spectrum: Spectrum, result: OptimizationResult)
 </head>
 <body>
   <h1>Spectrum comparison</h1>
-  {_svg_lines(target_spectrum.energies, series, classes, width=1100, height=420)}
+  <p>Counts are shown on a logarithmic y scale.</p>
+  {_svg_lines(target_spectrum.energies, series, classes, width=1100, height=420, log_y=True)}
   <table>
     <thead><tr><th>Series</th><th>Score</th></tr></thead>
     <tbody>{legend_rows}</tbody>
@@ -212,11 +214,12 @@ def _svg_lines(
     classes: list[str],
     width: int = 980,
     height: int = 320,
+    log_y: bool = False,
 ) -> str:
     margin = 32
     min_x = min(x_values)
     max_x = max(x_values)
-    all_y = [value for values in series for value in values]
+    all_y = [_scaled_y_value(value, series, log_y) for values in series for value in values]
     min_y = min(all_y)
     max_y = max(all_y)
     if min_y == max_y:
@@ -227,6 +230,7 @@ def _svg_lines(
         return margin + (value - min_x) * (width - 2 * margin) / (max_x - min_x)
 
     def scale_y(value: float) -> float:
+        value = _scaled_y_value(value, series, log_y)
         return height - margin - (value - min_y) * (height - 2 * margin) / (max_y - min_y)
 
     paths = []
@@ -240,9 +244,17 @@ def _svg_lines(
             'fill="none" stroke-width="2" />'
         )
     return (
-        f'<svg viewBox="0 0 {width} {height}" role="img">'
+        f'<svg viewBox="0 0 {width} {height}" role="img" data-y-scale="{"log" if log_y else "linear"}">'
         f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#8b949e" />'
         f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#8b949e" />'
         + "".join(paths)
         + "</svg>"
     )
+
+
+def _scaled_y_value(value: float, series: list[tuple[float, ...]], log_y: bool) -> float:
+    if not log_y:
+        return value
+    positives = [item for values in series for item in values if item > 0]
+    floor = min(positives) / 10.0 if positives else 1e-12
+    return math.log10(max(value, floor))
