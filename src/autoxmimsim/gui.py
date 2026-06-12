@@ -39,6 +39,10 @@ class AutoXmimsimApp:
         self.initial_evaluations_var = tk.StringVar(value="2")
         self.photons_interval_var = tk.StringVar(value="10")
         self.photons_line_var = tk.StringVar(value="100")
+        self.hdf5_point_var = tk.StringVar(value="1")
+        self.hdf5_reducer_var = tk.StringVar(value="sum")
+        self.hdf5_energy_offset_var = tk.StringVar(value="0.02")
+        self.hdf5_energy_step_var = tk.StringVar(value="0.01")
         self.status_var = tk.StringVar(value="Ready")
         self.report_path: Path | None = None
         self.plot_path: Path | None = None
@@ -107,10 +111,23 @@ class AutoXmimsimApp:
             ("Initial evaluations", self.initial_evaluations_var),
             ("Photons interval", self.photons_interval_var),
             ("Photons line", self.photons_line_var),
+            ("HDF5 point", self.hdf5_point_var),
+            ("HDF5 E0", self.hdf5_energy_offset_var),
+            ("HDF5 dE", self.hdf5_energy_step_var),
         )
         for index, (label, variable) in enumerate(fields):
-            ttk.Label(controls, text=label).grid(row=0, column=2 * index, sticky="w", padx=(0, 6))
-            ttk.Entry(controls, textvariable=variable, width=12).grid(row=0, column=2 * index + 1, sticky="ew")
+            row = index // 4
+            column = 2 * (index % 4)
+            ttk.Label(controls, text=label).grid(row=row, column=column, sticky="w", padx=(0, 6), pady=2)
+            ttk.Entry(controls, textvariable=variable, width=12).grid(row=row, column=column + 1, sticky="ew", pady=2)
+        ttk.Label(controls, text="HDF5 combine").grid(row=1, column=6, sticky="w", padx=(0, 6), pady=2)
+        ttk.Combobox(
+            controls,
+            textvariable=self.hdf5_reducer_var,
+            values=("sum", "mean"),
+            state="readonly",
+            width=10,
+        ).grid(row=1, column=7, sticky="ew", pady=2)
 
     def _build_parameter_table(self, parent: ttk.Frame) -> None:
         wrapper = ttk.LabelFrame(parent, text="Bayesian parameters", padding=10)
@@ -184,7 +201,7 @@ class AutoXmimsimApp:
     def _browse_measured(self) -> None:
         path = filedialog.askopenfilename(
             title="Choose measured spectrum CSV",
-            filetypes=(("CSV spectrum", "*.csv"), ("All files", "*.*")),
+            filetypes=(("Measured spectra", "*.csv *.h5 *.hdf5 *.nxs *.nx5"), ("All files", "*.*")),
         )
         if path:
             self.measured_var.set(path)
@@ -208,7 +225,7 @@ class AutoXmimsimApp:
 
     def _read_request(
         self,
-    ) -> tuple[str, Path, Path | None, Path, ParameterValues, ParameterSpace, int, int, ParameterValues]:
+    ) -> tuple[str, Path, Path | None, Path, ParameterValues, ParameterSpace, int, int, ParameterValues, int, str, float, float]:
         template = Path(self.template_var.get())
         output = Path(self.output_var.get())
         if not template.exists():
@@ -248,6 +265,10 @@ class AutoXmimsimApp:
             evaluations,
             initial_evaluations,
             fixed,
+            int(self.hdf5_point_var.get()),
+            self.hdf5_reducer_var.get(),
+            float(self.hdf5_energy_offset_var.get()),
+            float(self.hdf5_energy_step_var.get()),
         )
 
     def _run_worker(
@@ -261,6 +282,10 @@ class AutoXmimsimApp:
         evaluations: int,
         initial_evaluations: int,
         fixed: ParameterValues,
+        hdf5_point: int,
+        hdf5_reducer: str,
+        hdf5_energy_offset: float,
+        hdf5_energy_step: float,
     ) -> None:
         try:
             if mode == "measured":
@@ -274,6 +299,10 @@ class AutoXmimsimApp:
                     evaluations=evaluations,
                     initial_evaluations=initial_evaluations,
                     fixed_parameters=fixed,
+                    hdf5_point_index=hdf5_point,
+                    hdf5_reducer=hdf5_reducer,
+                    hdf5_energy_offset=hdf5_energy_offset,
+                    hdf5_energy_step=hdf5_energy_step,
                 )
             else:
                 result, report_path = run_real_bronze_demo(

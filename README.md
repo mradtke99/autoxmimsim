@@ -94,3 +94,12 @@ energy,counts
 
 The measured workflow interpolates simulated spectra onto the measured energy grid
 before scoring and plotting.
+
+Measured HDF5 files are also supported when spectra are stored as
+`entry/data/data` with shape `(points, spectra_per_point, channels)`, such as
+`50cent1002.hdf5`. By default autoxmimsim loads point `1`, sums the four spectra
+at that point, and assigns the XMI-MSIM-like energy grid `0.02 + channel * 0.01`.
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi tests\fixtures\50cent1002.hdf5 --output reports\hdf5-optimization --range copper_layer_thickness=0.0001:0.001:7 --evaluations 20 --hdf5-point 1 --hdf5-reducer sum --hdf5-energy-offset 0.02 --hdf5-energy-step 0.01
+```

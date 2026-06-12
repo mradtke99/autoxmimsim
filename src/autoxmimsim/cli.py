@@ -164,6 +164,30 @@ def build_parser() -> argparse.ArgumentParser:
         default=100.0,
         help="fixed XMI-MSIM line photon count for each simulation",
     )
+    measured.add_argument(
+        "--hdf5-point",
+        type=int,
+        default=1,
+        help="HDF5 point index to load from entry/data/data",
+    )
+    measured.add_argument(
+        "--hdf5-reducer",
+        choices=("sum", "mean"),
+        default="sum",
+        help="how to combine the 4 spectra at each HDF5 point",
+    )
+    measured.add_argument(
+        "--hdf5-energy-offset",
+        type=float,
+        default=0.02,
+        help="energy for HDF5 channel 0",
+    )
+    measured.add_argument(
+        "--hdf5-energy-step",
+        type=float,
+        default=0.01,
+        help="energy increment per HDF5 channel",
+    )
     return parser
 
 
@@ -250,6 +274,10 @@ def main(argv: list[str] | None = None) -> int:
                 "n_photons_interval": args.n_photons_interval,
                 "n_photons_line": args.n_photons_line,
             },
+            hdf5_point_index=args.hdf5_point,
+            hdf5_reducer=args.hdf5_reducer,
+            hdf5_energy_offset=args.hdf5_energy_offset,
+            hdf5_energy_step=args.hdf5_energy_step,
         )
         print(f"Best score: {result.best.score:.8g}")
         print(f"Best run: {result.best.result.run_id}")

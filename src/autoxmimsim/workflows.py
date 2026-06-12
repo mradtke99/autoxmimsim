@@ -16,7 +16,7 @@ from autoxmimsim.objectives import interpolated_normalized_rmse, normalized_rmse
 from autoxmimsim.optimization import CandidateResult, OptimizationResult, bayesian_grid_search, grid_search
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.reporting import write_recovery_report, write_spectrum_plot
-from autoxmimsim.spectrum import Spectrum, interpolate_to, load_measured_csv
+from autoxmimsim.spectrum import Spectrum, interpolate_to, load_measured_spectrum
 from autoxmimsim.xmsi import XmsiSummary, XmsiTemplate
 
 
@@ -134,8 +134,18 @@ def run_measured_optimization(
     evaluations: int,
     fixed_parameters: ParameterValues | None = None,
     initial_evaluations: int = 2,
+    hdf5_point_index: int = 1,
+    hdf5_reducer: str = "sum",
+    hdf5_energy_offset: float = 0.02,
+    hdf5_energy_step: float = 0.01,
 ) -> tuple[OptimizationResult, Path]:
-    measured_spectrum = load_measured_csv(measured_spectrum_path)
+    measured_spectrum = load_measured_spectrum(
+        measured_spectrum_path,
+        hdf5_point_index=hdf5_point_index,
+        hdf5_reducer=hdf5_reducer,  # type: ignore[arg-type]
+        hdf5_energy_offset=hdf5_energy_offset,
+        hdf5_energy_step=hdf5_energy_step,
+    )
     backend = _FixedParameterBackend(
         XmiMsimCliBackend(template_path=template_path, work_dir=output_dir, threads=1),
         fixed_parameters or {},

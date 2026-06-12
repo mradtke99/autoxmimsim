@@ -87,6 +87,14 @@ class CliTests(unittest.TestCase):
                             "value=9:11:3",
                             "--evaluations",
                             "2",
+                            "--hdf5-point",
+                            "3",
+                            "--hdf5-reducer",
+                            "mean",
+                            "--hdf5-energy-offset",
+                            "0.01",
+                            "--hdf5-energy-step",
+                            "0.02",
                         ]
                     ),
                     0,
@@ -96,3 +104,7 @@ class CliTests(unittest.TestCase):
             self.assertEqual(str(args[1]), "measured.csv")
             self.assertEqual(kwargs["parameter_space"].parameters[0].name, "value")
             self.assertEqual(kwargs["evaluations"], 2)
+            self.assertEqual(kwargs["hdf5_point_index"], 3)
+            self.assertEqual(kwargs["hdf5_reducer"], "mean")
+            self.assertEqual(kwargs["hdf5_energy_offset"], 0.01)
+            self.assertEqual(kwargs["hdf5_energy_step"], 0.02)

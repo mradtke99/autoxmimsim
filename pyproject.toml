@@ -12,7 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Martin Radtke" }
 ]
-dependencies = []
+dependencies = [
+  "h5py>=3.0",
+]
 
 [project.scripts]
 autoxmimsim = "autoxmimsim.cli:main"

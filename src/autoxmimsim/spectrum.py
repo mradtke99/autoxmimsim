@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,65 @@ def load_measured_csv(path: Path) -> Spectrum:
             raise
         energies.append(energy)
         counts.append(count)
+    return Spectrum.from_sequences(energies, counts)
+
+
+def load_measured_spectrum(
+    path: Path,
+    hdf5_point_index: int = 0,
+    hdf5_reducer: Literal["sum", "mean"] = "sum",
+    hdf5_energy_offset: float = 0.02,
+    hdf5_energy_step: float = 0.01,
+) -> Spectrum:
+    """Load a measured spectrum from CSV or HDF5.
+
+    HDF5 files are expected to contain ``entry/data/data`` with shape
+    ``(points, spectra_per_point, channels)``.
+    """
+
+    if path.suffix.lower() in {".h5", ".hdf5", ".nxs", ".nx5"}:
+        return load_measured_hdf5(
+            path,
+            point_index=hdf5_point_index,
+            reducer=hdf5_reducer,
+            energy_offset=hdf5_energy_offset,
+            energy_step=hdf5_energy_step,
+        )
+    return load_measured_csv(path)
+
+
+def load_measured_hdf5(
+    path: Path,
+    point_index: int = 0,
+    reducer: Literal["sum", "mean"] = "sum",
+    dataset_path: str = "entry/data/data",
+    energy_offset: float = 0.02,
+    energy_step: float = 0.01,
+) -> Spectrum:
+    """Load one measured point from an HDF5 spectrum stack."""
+
+    try:
+        import h5py
+    except ImportError as exc:  # pragma: no cover - depends on runtime env
+        raise RuntimeError("h5py is required to read measured HDF5 spectra") from exc
+
+    with h5py.File(path, "r") as handle:
+        if dataset_path not in handle:
+            raise ValueError(f"missing HDF5 dataset: {dataset_path}")
+        data = handle[dataset_path]
+        if len(data.shape) != 3:
+            raise ValueError(f"HDF5 dataset must have shape (points, spectra, channels), got {data.shape}")
+        if point_index < 0 or point_index >= data.shape[0]:
+            raise ValueError(f"point index {point_index} outside HDF5 point range 0..{data.shape[0] - 1}")
+        spectra = data[point_index, :, :]
+        if reducer == "sum":
+            counts_array = spectra.sum(axis=0)
+        elif reducer == "mean":
+            counts_array = spectra.mean(axis=0)
+        else:
+            raise ValueError(f"unsupported HDF5 reducer: {reducer}")
+    counts = [float(value) for value in counts_array]
+    energies = [energy_offset + index * energy_step for index in range(len(counts))]
     return Spectrum.from_sequences(energies, counts)
 
 
