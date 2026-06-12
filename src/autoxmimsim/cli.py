@@ -28,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command")
 
+    subparsers.add_parser(
+        "gui",
+        help="launch the desktop GUI for Bayesian XMI-MSIM searches",
+    )
+
     synthetic_demo = subparsers.add_parser(
         "synthetic-demo",
         help="run the first synthetic recovery workflow with the fake backend",
@@ -121,7 +126,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command == "synthetic-demo":
+    if args.command == "gui":
+        from autoxmimsim.gui import launch_gui
+
+        launch_gui()
+    elif args.command == "synthetic-demo":
         result, report_path = run_synthetic_recovery(args.output)
         print(f"Best score: {result.best.score:.8g}")
         print("Recovered parameters:")

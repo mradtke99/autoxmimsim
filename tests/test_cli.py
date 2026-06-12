@@ -21,6 +21,11 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(main(["synthetic-demo", "--output", "out"]), 0)
             run_synthetic_recovery.assert_called_once()
 
+    def test_gui_command_launches_gui(self) -> None:
+        with patch("autoxmimsim.gui.launch_gui") as launch_gui:
+            self.assertEqual(main(["gui"]), 0)
+            launch_gui.assert_called_once()
+
     def test_real_bronze_command_runs_workflow(self) -> None:
         with patch("autoxmimsim.cli.run_real_bronze_demo") as run_real_bronze_demo:
             best = unittest.mock.Mock(

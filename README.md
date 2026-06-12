@@ -28,6 +28,16 @@ Run the CLI:
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim --version
 ```
 
+Launch the desktop GUI:
+
+```powershell
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim gui
+```
+
+The GUI lets you choose the XMSI template, choose the output folder, edit
+Bayesian parameter target/range rows, set photon counts and evaluations, run the
+search, and open the generated report or spectrum comparison plot.
+
 Run the first synthetic recovery demo:
 
 ```powershell
