@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,9 @@ XMSI_DOCTYPE = '<!DOCTYPE xmimsim SYSTEM "http://www.xmi.UGent.be/xml/xmimsim-1.
 BRONZE_LAYER_INDEX = 3
 COPPER_LAYER_INDEX = 1
 TIN_LAYER_INDEX = 2
+GENERIC_THICKNESS_RE = re.compile(r"^layer_(\d+)_thickness$")
+GENERIC_DENSITY_RE = re.compile(r"^layer_(\d+)_density$")
+GENERIC_FRACTION_RE = re.compile(r"^layer_(\d+)_z(\d+)_fraction$")
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,15 @@ class XmsiSummary:
     d_sample_source: float
     detector_window_z: float
     layers: tuple[LayerSummary, ...]
+
+
+@dataclass(frozen=True)
+class ParameterSuggestion:
+    name: str
+    current: float
+    lower: float
+    upper: float
+    steps: int = 5
 
 
 class XmsiTemplate:
@@ -93,6 +106,7 @@ class XmsiTemplate:
             self._set_text("general/n_photons_interval", parameters["n_photons_interval"])
         if "n_photons_line" in parameters:
             self._set_text("general/n_photons_line", parameters["n_photons_line"])
+        self._apply_generic_layer_parameters(parameters)
 
     def set_outputfile(self, outputfile: Path | str) -> None:
         self._set_text("general/outputfile", str(outputfile))
@@ -111,6 +125,38 @@ class XmsiTemplate:
             raise ValueError("layer thickness must be positive")
         layer = self._layer(layer_index)
         _required_child(layer, "thickness").text = _format_float(thickness)
+
+    def set_layer_density(self, layer_index: int, density: float) -> None:
+        if density <= 0:
+            raise ValueError("layer density must be positive")
+        layer = self._layer(layer_index)
+        _required_child(layer, "density").text = _format_float(density)
+
+    def parameter_suggestions(self, sample_layer_index: int | None = None) -> tuple[ParameterSuggestion, ...]:
+        summary = self.summary()
+        layer = summary.layers[sample_layer_index or self.first_sample_layer_index()]
+        suggestions = [
+            _bounded_suggestion(f"layer_{layer.index}_thickness", layer.thickness),
+            _bounded_suggestion(f"layer_{layer.index}_density", layer.density),
+        ]
+        suggestions.extend(
+            _fraction_suggestion(f"layer_{layer.index}_z{element.atomic_number}_fraction", element.weight_fraction)
+            for element in layer.elements
+        )
+        suggestions.extend(
+            (
+                _bounded_suggestion("d_sample_source", summary.d_sample_source),
+                _bounded_suggestion("detector_window_z", summary.detector_window_z),
+            )
+        )
+        return tuple(suggestions)
+
+    def first_sample_layer_index(self) -> int:
+        layers = self.summary().layers
+        for layer in layers:
+            if layer.index != 0:
+                return layer.index
+        raise ValueError("template has no non-air sample layer")
 
     def write(self, path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,6 +211,41 @@ class XmsiTemplate:
         element = _required_child(self._tree.getroot(), path)
         element.text = _format_float(value) if isinstance(value, float) else str(value)
 
+    def _apply_generic_layer_parameters(self, parameters: ParameterValues) -> None:
+        layer_fraction_updates: dict[int, dict[int, float]] = {}
+        for name, value in parameters.items():
+            thickness_match = GENERIC_THICKNESS_RE.match(name)
+            if thickness_match:
+                self.set_layer_thickness(int(thickness_match.group(1)), value)
+                continue
+            density_match = GENERIC_DENSITY_RE.match(name)
+            if density_match:
+                self.set_layer_density(int(density_match.group(1)), value)
+                continue
+            fraction_match = GENERIC_FRACTION_RE.match(name)
+            if fraction_match:
+                layer_index = int(fraction_match.group(1))
+                atomic_number = int(fraction_match.group(2))
+                layer_fraction_updates.setdefault(layer_index, {})[atomic_number] = value
+        for layer_index, updates in layer_fraction_updates.items():
+            self._set_normalized_layer_fractions(layer_index, updates)
+
+    def _set_normalized_layer_fractions(self, layer_index: int, updates: dict[int, float]) -> None:
+        layer = self._layer(layer_index)
+        fractions = {
+            int(_required_text(element, "atomic_number")): float(_required_text(element, "weight_fraction"))
+            for element in layer.findall("element")
+        }
+        for atomic_number in updates:
+            if atomic_number not in fractions:
+                raise ValueError(f"layer {layer_index} has no element with Z={atomic_number}")
+        fractions.update(updates)
+        total = sum(fractions.values())
+        if total <= 0:
+            raise ValueError("layer element fractions must have a positive sum")
+        for atomic_number, fraction in fractions.items():
+            self._set_element_fraction(layer_index, atomic_number, 100.0 * fraction / total)
+
     def _layer(self, index: int) -> ET.Element:
         layers = self._layers()
         try:
@@ -194,3 +275,20 @@ def _format_float(value: float | int | str) -> str:
     if isinstance(value, str):
         return value
     return f"{value:.12g}"
+
+
+def _bounded_suggestion(name: str, value: float) -> ParameterSuggestion:
+    lower = value * 0.5 if value > 0 else -1.0
+    upper = value * 1.5 if value > 0 else 1.0
+    if lower == upper:
+        upper = lower + 1.0
+    return ParameterSuggestion(name=name, current=value, lower=lower, upper=upper)
+
+
+def _fraction_suggestion(name: str, value: float) -> ParameterSuggestion:
+    lower = max(0.0, value - 20.0)
+    upper = min(100.0, value + 20.0)
+    if lower == upper:
+        lower = max(0.0, value - 1.0)
+        upper = min(100.0, value + 1.0)
+    return ParameterSuggestion(name=name, current=value, lower=lower, upper=upper)

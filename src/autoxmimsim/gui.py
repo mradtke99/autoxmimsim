@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from autoxmimsim.parameters import Parameter, ParameterSpace, ParameterValues
 from autoxmimsim.workflows import run_measured_optimization, run_real_bronze_demo
+from autoxmimsim.xmsi import XmsiTemplate
 
 
 DEFAULT_ROWS = (
@@ -151,6 +152,13 @@ class AutoXmimsimApp:
             padx=4,
             pady=(8, 0),
         )
+        ttk.Button(wrapper, text="Load from template", command=self._load_parameters_from_template).grid(
+            row=99,
+            column=1,
+            sticky="w",
+            padx=4,
+            pady=(8, 0),
+        )
 
     def _build_log(self, parent: ttk.Frame) -> None:
         log_frame = ttk.LabelFrame(parent, text="Run log", padding=10)
@@ -180,6 +188,28 @@ class AutoXmimsimApp:
         row = ParameterRow(self.table, len(self.rows) + 1, values, self._remove_parameter_row)
         self.rows.append(row)
         row.set_target_enabled(self.mode_var.get() != "measured")
+
+    def _load_parameters_from_template(self) -> None:
+        try:
+            template = XmsiTemplate.load(Path(self.template_var.get()))
+            suggestions = template.parameter_suggestions()
+        except Exception as exc:
+            messagebox.showerror("autoxmimsim", str(exc))
+            return
+        for row in list(self.rows):
+            row.destroy()
+        self.rows = []
+        for suggestion in suggestions:
+            self._add_parameter_row(
+                (
+                    suggestion.name,
+                    f"{suggestion.current:.8g}",
+                    f"{suggestion.lower:.8g}",
+                    f"{suggestion.upper:.8g}",
+                    str(suggestion.steps),
+                )
+            )
+        self._log(f"Loaded {len(suggestions)} parameters from first non-air layer.")
 
     def _remove_parameter_row(self, row: "ParameterRow") -> None:
         if len(self.rows) <= 1:

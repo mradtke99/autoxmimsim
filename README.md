@@ -37,7 +37,9 @@ C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autox
 The GUI lets you choose the XMSI template, choose a measured spectrum CSV or use
 synthetic target values, edit Bayesian parameter ranges, set photon counts and
 evaluations, run the search, and open the generated report or spectrum comparison
-plot.
+plot. Use `Load from template` to populate all currently supported parameters for
+the first non-air sample layer: thickness, density, each element weight fraction,
+plus sample-source distance and detector-window z.
 
 Run the first synthetic recovery demo:
 
@@ -103,3 +105,11 @@ at that point, and assigns the XMI-MSIM-like energy grid `0.02 + channel * 0.01`
 ```powershell
 C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi tests\fixtures\50cent1002.hdf5 --output reports\hdf5-optimization --range copper_layer_thickness=0.0001:0.001:7 --evaluations 20 --hdf5-point 1 --hdf5-reducer sum --hdf5-energy-offset 0.02 --hdf5-energy-step 0.01
 ```
+
+Generic one-layer XMSI parameters can also be optimized directly:
+
+```powershell
+--range layer_1_thickness=0.00005:0.001:7 --range layer_1_density=4:12:7 --range layer_1_z29_fraction=50:100:6
+```
+
+For a one-layer sample, use layer `1` when layer `0` is air.

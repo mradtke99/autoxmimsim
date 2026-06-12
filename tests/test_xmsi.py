@@ -44,6 +44,33 @@ class XmsiTemplateTests(unittest.TestCase):
         self.assertEqual(summary.layers[3].elements[0].weight_fraction, 85.0)
         self.assertEqual(summary.layers[3].elements[1].weight_fraction, 15.0)
 
+    def test_applies_generic_layer_parameters(self) -> None:
+        template = XmsiTemplate.load(FIXTURE).clone()
+
+        template.apply_parameters(
+            {
+                "layer_1_thickness": 0.0002,
+                "layer_1_density": 8.5,
+                "layer_3_z29_fraction": 80.0,
+                "layer_3_z50_fraction": 20.0,
+            }
+        )
+        summary = template.summary()
+
+        self.assertEqual(summary.layers[1].thickness, 0.0002)
+        self.assertEqual(summary.layers[1].density, 8.5)
+        self.assertEqual(summary.layers[3].elements[0].weight_fraction, 80.0)
+        self.assertEqual(summary.layers[3].elements[1].weight_fraction, 20.0)
+
+    def test_suggests_first_non_air_layer_parameters(self) -> None:
+        suggestions = XmsiTemplate.load(FIXTURE).parameter_suggestions()
+        names = {suggestion.name for suggestion in suggestions}
+
+        self.assertIn("layer_1_thickness", names)
+        self.assertIn("layer_1_density", names)
+        self.assertIn("layer_1_z29_fraction", names)
+        self.assertIn("d_sample_source", names)
+
     def test_template_backend_renders_candidate_file(self) -> None:
         output_dir = Path("reports") / "test-xmsi-template"
         backend = XmsiTemplateBackend(template_path=FIXTURE, work_dir=output_dir)
