@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     real_bronze.add_argument(
         "--evaluations",
         type=int,
-        required=True,
+        default=50,
         help="number of Bayesian candidate simulations to run",
     )
     real_bronze.add_argument(
@@ -143,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     measured.add_argument(
         "--evaluations",
         type=int,
-        required=True,
+        default=50,
         help="number of Bayesian candidate simulations to run",
     )
     measured.add_argument(

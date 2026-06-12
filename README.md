@@ -71,7 +71,7 @@ C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autox
 Run the first tiny real-backend Cu/Sn layer-thickness Bayesian optimization:
 
 ```powershell
-C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-real-bronze-demo tests\fixtures\CuSnBronze.xmsi --output reports\real-bronze-demo --target copper_layer_thickness=0.00055 --target tin_layer_thickness=0.05 --range copper_layer_thickness=0.0001:0.001:3 --range tin_layer_thickness=0.03:0.07:3 --evaluations 5
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim run-real-bronze-demo tests\fixtures\CuSnBronze.xmsi --output reports\real-bronze-demo --target copper_layer_thickness=0.00055 --target tin_layer_thickness=0.05 --range copper_layer_thickness=0.0001:0.001:3 --range tin_layer_thickness=0.03:0.07:3 --evaluations 50
 ```
 
 This renders one target from the supplied `--target` values and adaptively selects
@@ -82,7 +82,7 @@ visual inspection.
 Optimize against a measured spectrum CSV:
 
 ```powershell
-C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi path\to\measured-spectrum.csv --output reports\measured-optimization --range copper_layer_thickness=0.0001:0.001:7 --range tin_layer_thickness=0.03:0.07:7 --evaluations 20
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi path\to\measured-spectrum.csv --output reports\measured-optimization --range copper_layer_thickness=0.0001:0.001:7 --range tin_layer_thickness=0.03:0.07:7 --evaluations 50
 ```
 
 Measured CSV files should contain energy and counts columns. A header is allowed:
@@ -103,7 +103,7 @@ Measured HDF5 files are also supported when spectra are stored as
 at that point, and assigns the XMI-MSIM-like energy grid `0.02 + channel * 0.01`.
 
 ```powershell
-C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi tests\fixtures\50cent1002.hdf5 --output reports\hdf5-optimization --range copper_layer_thickness=0.0001:0.001:7 --evaluations 20 --hdf5-point 1 --hdf5-reducer sum --hdf5-energy-offset 0.02 --hdf5-energy-step 0.01
+C:\Users\mradtke\AppData\Local\Continuum\anaconda3\envs\py10\python.exe -m autoxmimsim optimize-measured tests\fixtures\CuSnBronze.xmsi tests\fixtures\50cent1002.hdf5 --output reports\hdf5-optimization --range copper_layer_thickness=0.0001:0.001:7 --evaluations 50 --hdf5-point 1 --hdf5-reducer sum --hdf5-energy-offset 0.02 --hdf5-energy-step 0.01
 ```
 
 Generic one-layer XMSI parameters can also be optimized directly:

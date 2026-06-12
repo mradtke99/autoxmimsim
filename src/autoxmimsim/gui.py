@@ -36,7 +36,7 @@ class AutoXmimsimApp:
         self.measured_var = tk.StringVar(value="")
         self.output_var = tk.StringVar(value=str(Path("reports") / "real-bronze-demo"))
         self.mode_var = tk.StringVar(value="measured")
-        self.evaluations_var = tk.StringVar(value="5")
+        self.evaluations_var = tk.StringVar(value="50")
         self.initial_evaluations_var = tk.StringVar(value="2")
         self.photons_interval_var = tk.StringVar(value="10")
         self.photons_line_var = tk.StringVar(value="100")
